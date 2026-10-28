@@ -8,8 +8,9 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - host: example.com
-      http:
+    # No host rule, so the shop answers on the ALB's own DNS name.
+    # Add a host here once a Route 53 record points at the ALB.
+    - http:
         paths:
           - path: "/"
             pathType: Prefix
