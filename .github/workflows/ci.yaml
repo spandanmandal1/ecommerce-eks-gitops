@@ -66,9 +66,9 @@ jobs:
           cache-dependency-path: src/product-catalog/go.sum
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: v1.61.0
+          version: v2.15.0
           working-directory: src/product-catalog
           # Lint changes only; the service code itself comes from the upstream demo.
           only-new-issues: true
