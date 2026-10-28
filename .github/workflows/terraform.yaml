@@ -1,0 +1,80 @@
+# Terraform checks on every change to terraform/.
+# Static checks only: no AWS credentials, nothing is planned or applied here.
+
+name: terraform
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: latest
+
+      - name: Format check
+        run: terraform fmt -recursive -check -diff
+
+      - name: Validate stack
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: Validate bootstrap
+        run: |
+          terraform -chdir=bootstrap init -input=false
+          terraform -chdir=bootstrap validate
+
+  tflint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Run TFLint
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          tflint --init
+          tflint --recursive --config "$PWD/.tflint.hcl" --format compact
+
+  checkov:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Accepted risks are skipped inline in the .tf files, each with a reason.
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform
+          framework: terraform
+          quiet: true

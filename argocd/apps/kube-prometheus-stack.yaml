@@ -1,0 +1,54 @@
+# Prometheus, Alertmanager, Grafana and the node/kube-state exporters.
+# Before the first sync, create the Grafana admin secret:
+#   kubectl create namespace monitoring
+#   kubectl -n monitoring create secret generic grafana-admin \
+#     --from-literal=admin-user=admin --from-literal=admin-password='<password>'
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 92.14.1
+    helm:
+      valuesObject:
+        # EKS manages the control plane, so these endpoints can't be scraped.
+        kubeControllerManager:
+          enabled: false
+        kubeScheduler:
+          enabled: false
+        kubeEtcd:
+          enabled: false
+        kubeProxy:
+          enabled: false
+        prometheus:
+          prometheusSpec:
+            retention: 7d
+            # Pick up ServiceMonitors from every namespace, not only this release.
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+        grafana:
+          admin:
+            existingSecret: grafana-admin
+            userKey: admin-user
+            passwordKey: admin-password
+          additionalDataSources:
+            - name: Loki
+              type: loki
+              access: proxy
+              url: http://loki.monitoring.svc.cluster.local:3100
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # The Prometheus Operator CRDs are too large for client-side apply.
+      - ServerSideApply=true
