@@ -1,6 +1,6 @@
 # ecommerce-eks-gitops
 
-A 19-service e-commerce shop running on AWS EKS. The infrastructure is built with Terraform, CI is GitHub Actions, deployment is GitOps with Argo CD, and Prometheus, Grafana and Loki handle metrics and logs.
+A 19-service e-commerce shop that deploys to AWS EKS. The infrastructure is built with Terraform, CI is GitHub Actions, deployment is GitOps with Argo CD, and Prometheus, Grafana and Loki handle metrics and logs.
 
 The application is the [OpenTelemetry Astronomy Shop demo](https://github.com/open-telemetry/opentelemetry-demo) (Apache-2.0). Everything around it is the work in this repo: infrastructure, pipelines, Kubernetes manifests, GitOps and monitoring.
 
