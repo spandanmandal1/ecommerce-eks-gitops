@@ -30,6 +30,10 @@ variable "bucket_name" {
 }
 
 resource "aws_s3_bucket" "terraform_state" {
+  #checkov:skip=CKV_AWS_144:Cross-region replication is overkill for a demo state bucket
+  #checkov:skip=CKV_AWS_145:SSE-S3 is enough here; KMS adds cost and key management
+  #checkov:skip=CKV_AWS_18:Access logging needs a second bucket; versioning covers recovery
+  #checkov:skip=CKV2_AWS_62:No consumer for event notifications
   bucket = var.bucket_name
 
   lifecycle {
@@ -66,4 +70,24 @@ resource "aws_s3_bucket_public_access_block" "terraform_state" {
 output "s3_bucket_name" {
   description = "The name of the state bucket"
   value       = aws_s3_bucket.terraform_state.id
+}
+
+# Keep 90 days of old state versions for rollback, then expire them.
+resource "aws_s3_bucket_lifecycle_configuration" "terraform_state" {
+  bucket = aws_s3_bucket.terraform_state.id
+
+  rule {
+    id     = "expire-old-state-versions"
+    status = "Enabled"
+
+    filter {}
+
+    noncurrent_version_expiration {
+      noncurrent_days = 90
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
 }

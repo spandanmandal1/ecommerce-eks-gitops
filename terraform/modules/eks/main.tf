@@ -18,10 +18,28 @@ resource "aws_iam_role_policy_attachment" "cluster_policy" {
   role       = aws_iam_role.cluster.name
 }
 
+resource "aws_kms_key" "eks" {
+  #checkov:skip=CKV2_AWS_64:Default key policy (account root) is enough for a single-account demo
+  description             = "${var.cluster_name} Kubernetes secrets encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+}
+
 resource "aws_eks_cluster" "main" {
+  #checkov:skip=CKV_AWS_39:Public endpoint kept for kubectl from a laptop; restrict with public_access_cidrs
+  #checkov:skip=CKV_AWS_38:Allowed CIDRs are set per environment through public_access_cidrs
   name     = var.cluster_name
   version  = var.cluster_version
   role_arn = aws_iam_role.cluster.arn
+
+  enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+
+  encryption_config {
+    resources = ["secrets"]
+    provider {
+      key_arn = aws_kms_key.eks.arn
+    }
+  }
 
   vpc_config {
     subnet_ids              = var.subnet_ids

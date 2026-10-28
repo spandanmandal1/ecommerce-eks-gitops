@@ -1,4 +1,5 @@
 resource "aws_vpc" "main" {
+  #checkov:skip=CKV2_AWS_11:Flow logs add CloudWatch cost; enable for prod audits
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
@@ -28,7 +29,9 @@ resource "aws_subnet" "public" {
   cidr_block        = var.public_subnet_cidrs[count.index]
   availability_zone = var.availability_zones[count.index]
 
-  map_public_ip_on_launch = true
+  # Only the ALB and NAT gateways live here and they get their own IPs,
+  # so instances launched here should not get a public IP by default.
+  map_public_ip_on_launch = false
 
   tags = {
     Name                                        = "${var.cluster_name}-public-${count.index + 1}"
@@ -106,4 +109,12 @@ resource "aws_route_table_association" "public" {
   count          = length(var.public_subnet_cidrs)
   subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
+}
+# Lock down the default security group so nothing uses it by accident.
+resource "aws_default_security_group" "default" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "${var.cluster_name}-default-deny"
+  }
 }
