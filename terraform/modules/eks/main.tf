@@ -25,6 +25,21 @@ resource "aws_kms_key" "eks" {
   enable_key_rotation     = true
 }
 
+# Let the cluster role use the key for envelope encryption of secrets.
+resource "aws_iam_role_policy" "cluster_kms" {
+  name = "${var.cluster_name}-cluster-kms"
+  role = aws_iam_role.cluster.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["kms:Encrypt", "kms:Decrypt", "kms:ListGrants", "kms:DescribeKey"]
+      Resource = aws_kms_key.eks.arn
+    }]
+  })
+}
+
 resource "aws_eks_cluster" "main" {
   #checkov:skip=CKV_AWS_39:Public endpoint kept for kubectl from a laptop; restrict with public_access_cidrs
   #checkov:skip=CKV_AWS_38:Allowed CIDRs are set per environment through public_access_cidrs
@@ -55,7 +70,8 @@ resource "aws_eks_cluster" "main" {
   }
 
   depends_on = [
-    aws_iam_role_policy_attachment.cluster_policy
+    aws_iam_role_policy_attachment.cluster_policy,
+    aws_iam_role_policy.cluster_kms,
   ]
 }
 
